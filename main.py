@@ -1,6 +1,53 @@
-def main():
-    print("Hello from ja-agent!")
+import logging
+from contextlib import asynccontextmanager
+
+import uvicorn
+from fastapi import FastAPI
+
+from app.core.config import settings
+from app.core.error.exception_handlers import setup_exception_handlers
+from app.core.logging import setup_logging
+from app.core.db.database import close_database
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    setup_logging()  # 로깅 설정 초기화
+
+    yield
+    # Shutdown
+    await close_database()
+
+
+app = FastAPI(
+    title="Job Assistant Agent System",
+    description="Job Assistant Agent System",
+    version="0.1.0",
+    lifespan=lifespan
+)
+
+# 예외 핸들러 등록
+setup_exception_handlers(app)
+
+
+# 라우터 등록
+
+@app.get("/")
+def read_root():
+    return {"message": "Job Assistant Agent System", "version": "0.1.0"}
 
 
 if __name__ == "__main__":
-    main()
+    # 개발 모드에서도 로깅 설정 적용
+    setup_logging()
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=settings.PORT,
+        reload=True,
+        log_level=settings.LOG_LEVEL.lower()
+    )
